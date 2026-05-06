@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ModdyTicket Dashboard{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎫</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  {% block head %}{% endblock %}
+</head>
+<body data-guild-id="{{ guild_id|default('') }}">
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="/dashboard/servers" class="sidebar-logo">
+      <div class="sidebar-logo-icon">🎫</div>
+      <div>
+        <div class="sidebar-logo-text">ModdyTicket</div>
+        <div class="sidebar-logo-sub">Dashboard v1.0</div>
+      </div>
+    </a>
+
+    {% if guild_id %}
+    <div class="sidebar-guild">
+      {% if guild_icon %}
+        <img src="{{ guild_icon }}" alt="icon">
+      {% else %}
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">{{ guild_name[0]|upper if guild_name else '?' }}</div>
+      {% endif %}
+      <div>
+        <div class="sidebar-guild-name">{{ guild_name or 'Servidor' }}</div>
+        <div class="sidebar-guild-tag">Administrando</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">General</div>
+      <a href="/dashboard/{{ guild_id }}/overview"  class="nav-item {% if active_page=='overview'  %}active{% endif %}">
+        <span class="nav-icon">📊</span> Vista General
+      </a>
+      <a href="/dashboard/{{ guild_id }}/tickets"   class="nav-item {% if active_page=='tickets'   %}active{% endif %}">
+        <span class="nav-icon">🎫</span> Tickets
+      </a>
+      <a href="/dashboard/{{ guild_id }}/stats"     class="nav-item {% if active_page=='stats'     %}active{% endif %}">
+        <span class="nav-icon">📈</span> Estadísticas
+      </a>
+      <a href="/dashboard/{{ guild_id }}/logs"      class="nav-item {% if active_page=='logs'      %}active{% endif %}">
+        <span class="nav-icon">📋</span> Logs
+      </a>
+
+      <div class="nav-section-label" style="margin-top:8px">Configuración</div>
+      <a href="/dashboard/{{ guild_id }}/settings"  class="nav-item {% if active_page=='settings'  %}active{% endif %}">
+        <span class="nav-icon">⚙️</span> Ajustes
+      </a>
+      <a href="/dashboard/{{ guild_id }}/panels"    class="nav-item {% if active_page=='panels'    %}active{% endif %}">
+        <span class="nav-icon">🎛️</span> Paneles
+      </a>
+      <a href="/dashboard/{{ guild_id }}/blacklist" class="nav-item {% if active_page=='blacklist' %}active{% endif %}">
+        <span class="nav-icon">🚫</span> Blacklist
+      </a>
+
+      <div class="nav-section-label" style="margin-top:8px">Servidor</div>
+      <a href="/dashboard/servers" class="nav-item">
+        <span class="nav-icon">🔄</span> Cambiar Servidor
+      </a>
+    </nav>
+    {% else %}
+    <nav class="sidebar-nav">
+      <a href="/dashboard/servers" class="nav-item active">
+        <span class="nav-icon">🖥️</span> Mis Servidores
+      </a>
+    </nav>
+    {% endif %}
+
+    <div class="sidebar-footer">
+      {% if user %}
+        <img src="{{ user.avatar_url }}" alt="avatar" class="sidebar-user-avatar">
+        <div>
+          <div class="sidebar-user-name">{{ user.global_name or user.username }}</div>
+        </div>
+        <a href="/auth/logout" class="sidebar-logout" title="Cerrar sesión">⏻</a>
+      {% endif %}
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:16px">
+        <button id="sidebar-toggle" style="display:none;background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">☰</button>
+        <div class="topbar-title">
+          <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+          <p>{% block page_subtitle %}ModdyTicket{% endblock %}</p>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        {% block topbar_actions %}{% endblock %}
+        {% if user %}
+          <div style="display:flex;align-items:center;gap:8px">
+            <img src="{{ user.avatar_url }}" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--neon-purple)" alt="avatar">
+            <span style="font-size:13px;font-weight:600;color:var(--text-secondary)">{{ user.global_name or user.username }}</span>
+          </div>
+        {% endif %}
+      </div>
+    </header>
+
+    <div class="content">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<!-- Toast container insertado por JS -->
+<script src="/static/js/dashboard.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
