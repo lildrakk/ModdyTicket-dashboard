@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Vista General — ModdyTicket{% endblock %}
+{% block page_title %}Vista General{% endblock %}
+{% block page_subtitle %}Resumen de actividad de {{ guild_name }}{% endblock %}
+
+{% block content %}
+<!-- Stat cards -->
+<div class="stats-grid">
+  <div class="stat-card purple">
+    <div class="stat-icon">🎫</div>
+    <div class="stat-label">Tickets Abiertos</div>
+    <div class="stat-value">{{ open_count }}</div>
+    <div class="stat-sub">En este momento</div>
+  </div>
+  <div class="stat-card blue">
+    <div class="stat-icon">✅</div>
+    <div class="stat-label">Total Cerrados</div>
+    <div class="stat-value">{{ closed_count }}</div>
+    <div class="stat-sub">Historial completo</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon">📈</div>
+    <div class="stat-label">Total Creados</div>
+    <div class="stat-value">{{ total_count }}</div>
+    <div class="stat-sub">Desde el inicio</div>
+  </div>
+  <div class="stat-card pink">
+    <div class="stat-icon">⭐</div>
+    <div class="stat-label">Feedback Promedio</div>
+    <div class="stat-value">{{ avg_feedback }}</div>
+    <div class="stat-sub">Sobre 5 estrellas</div>
+  </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:20px">
+  <!-- Actividad últimos 7 días -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="icon">📅</span> Actividad (7 días)</div>
+    </div>
+    <canvas id="activityChart" height="180"></canvas>
+  </div>
+
+  <!-- Categorías -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="icon">📋</span> Tickets por Categoría</div>
+    </div>
+    {% if categories %}
+      <canvas id="catChart" height="180"></canvas>
+    {% else %}
+      <div class="empty-state" style="padding:30px">
+        <div class="empty-state-icon">📋</div>
+        <p>Sin datos de categorías aún</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- Tickets abiertos recientes -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="icon">🟢</span> Tickets Abiertos</div>
+      <a href="/dashboard/{{ guild_id }}/tickets?status=open" class="btn btn-secondary btn-sm">Ver todos</a>
+    </div>
+    {% if open_tickets %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Usuario</th><th>Categoría</th><th>Estado</th></tr></thead>
+        <tbody>
+          {% for t in open_tickets %}
+          <tr>
+            <td><span style="font-family:'JetBrains Mono',monospace;color:var(--neon-purple)">#{{ t.ticket_id }}</span></td>
+            <td>{{ t.opened_by_name }}</td>
+            <td><span class="badge badge-purple">{{ t.category_id }}</span></td>
+            <td>
+              {% if t.claimed_by %}
+                <span class="badge badge-claimed">✋ Reclamado</span>
+              {% else %}
+                <span class="badge badge-open">🟢 Abierto</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state" style="padding:30px">
+        <div class="empty-state-icon">✅</div>
+        <h3>¡Sin tickets abiertos!</h3>
+        <p>Todo al día por ahora.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Top Staff -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="icon">👷</span> Top Staff</div>
+      <a href="/dashboard/{{ guild_id }}/stats" class="btn btn-secondary btn-sm">Ver stats</a>
+    </div>
+    {% if top_staff %}
+      <div style="display:flex;flex-direction:column;gap:12px">
+        {% for uid, count in top_staff %}
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--neon-purple),var(--neon-blue));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">
+            {{ loop.index }}
+          </div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px"><code style="font-size:11px;color:var(--text-muted)">{{ uid }}</code></div>
+            <div class="progress-bar">
+              {% set max_count = top_staff[0][1] if top_staff else 1 %}
+              <div class="progress-fill" style="width:{{ [(count/max_count*100)|int, 100]|min }}%"></div>
+            </div>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--neon-purple)">{{ count }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding:30px">
+        <div class="empty-state-icon">👷</div>
+        <p>Sin datos de staff aún</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const chartDefaults = {
+  color: 'rgba(148,163,184,0.8)',
+  plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 12 } } } },
+  scales: {
+    x: { ticks: { color: '#4b5563' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+    y: { ticks: { color: '#4b5563' }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true },
+  }
+};
+
+// Activity chart
+const days  = {{ days_data | tojson }};
+new Chart(document.getElementById('activityChart'), {
+  type: 'line',
+  data: {
+    labels: days.map(d => d.day),
+    datasets: [{
+      label: 'Tickets abiertos',
+      data: days.map(d => d.count),
+      borderColor: '#8b5cf6',
+      backgroundColor: 'rgba(139,92,246,0.1)',
+      fill: true, tension: 0.4, pointBackgroundColor: '#8b5cf6',
+      pointRadius: 4, pointHoverRadius: 6,
+    }]
+  },
+  options: { ...chartDefaults, responsive: true, maintainAspectRatio: true }
+});
+
+{% if categories %}
+// Categories chart
+const cats = {{ categories | tojson }};
+new Chart(document.getElementById('catChart'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(cats),
+    datasets: [{
+      data: Object.values(cats),
+      backgroundColor: ['#8b5cf6','#3b82f6','#10b981','#f59e0b','#ec4899'],
+      borderColor: '#1a1d27', borderWidth: 3,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 12 } } } },
+    cutout: '65%',
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

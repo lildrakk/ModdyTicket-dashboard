@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Mis Servidores — ModdyTicket{% endblock %}
+{% block page_title %}Mis Servidores{% endblock %}
+{% block page_subtitle %}Selecciona el servidor que quieres gestionar{% endblock %}
+
+{% block content %}
+<style>
+.servers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+.server-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 20px;
+  text-align: center;
+  text-decoration: none;
+  transition: var(--transition);
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  position: relative; overflow: hidden;
+}
+.server-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--neon-purple), var(--neon-blue));
+  opacity: 0; transition: var(--transition);
+}
+.server-card:hover { border-color: var(--border-neon); transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+.server-card:hover::before { opacity: 1; }
+.server-icon {
+  width: 64px; height: 64px; border-radius: 50%;
+  border: 3px solid var(--border);
+  transition: var(--transition);
+  object-fit: cover;
+}
+.server-card:hover .server-icon { border-color: var(--neon-purple); box-shadow: var(--glow-purple); }
+.server-icon-default {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--neon-purple), var(--neon-blue));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 800; color: #fff;
+  border: 3px solid var(--border);
+  transition: var(--transition);
+}
+.server-card:hover .server-icon-default { border-color: var(--neon-purple); box-shadow: var(--glow-purple); }
+.server-name { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.server-tag  { font-size: 11px; color: var(--neon-purple); font-weight: 600; }
+.server-manage {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(139,92,246,0.1);
+  border: 1px solid rgba(139,92,246,0.2);
+  color: var(--neon-purple);
+  padding: 5px 14px; border-radius: 99px;
+  font-size: 12px; font-weight: 600;
+  margin-top: 4px;
+}
+.page-intro {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  display: flex; align-items: center; gap: 16px;
+}
+.page-intro-icon { font-size: 32px; }
+.page-intro h2   { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.page-intro p    { font-size: 13px; color: var(--text-secondary); }
+</style>
+
+<div class="page-intro">
+  <div class="page-intro-icon">🖥️</div>
+  <div>
+    <h2>Bienvenido, {{ user.global_name or user.username }}!</h2>
+    <p>Se muestran solo los servidores donde eres administrador y ModdyTicket está presente.</p>
+  </div>
+</div>
+
+{% if request.query_params.get('error') == 'no_access' %}
+  <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:12px 16px;color:#ef4444;font-size:13px;margin-bottom:16px">
+    ⚠️ No tienes acceso a ese servidor o no eres administrador.
+  </div>
+{% endif %}
+
+{% if guilds %}
+  <div class="servers-grid">
+    {% for guild in guilds %}
+    <a href="/dashboard/select/{{ guild.id }}" class="server-card">
+      {% if guild.icon_url %}
+        <img src="{{ guild.icon_url }}" alt="{{ guild.name }}" class="server-icon">
+      {% else %}
+        <div class="server-icon-default">{{ guild.name[0]|upper }}</div>
+      {% endif %}
+      <div>
+        <div class="server-name">{{ guild.name }}</div>
+        <div class="server-tag">{{ guild.id }}</div>
+      </div>
+      <div class="server-manage">⚙️ Gestionar</div>
+    </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">🖥️</div>
+    <h3>Sin servidores disponibles</h3>
+    <p>No eres administrador en ningún servidor donde esté ModdyTicket,<br>o el bot no ha sido invitado aún.</p>
+    <br>
+    <a href="https://discord.com/oauth2/authorize?client_id={{ '' }}&permissions=8&scope=bot%20applications.commands" class="btn btn-primary" style="margin-top:12px">
+      ➕ Invitar ModdyTicket
+    </a>
+  </div>
+{% endif %}
+{% endblock %}

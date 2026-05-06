@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Logs — ModdyTicket{% endblock %}
+{% block page_title %}Logs de Tickets{% endblock %}
+{% block page_subtitle %}Historial de tickets cerrados en {{ guild_name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><span class="icon">📋</span> Tickets Cerrados ({{ logs|length }})</div>
+    <div class="search-wrap" style="width:240px">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Buscar por ID, usuario..." data-search="#logs-table">
+    </div>
+  </div>
+
+  {% if logs %}
+  <div class="table-wrap">
+    <table id="logs-table">
+      <thead>
+        <tr>
+          <th>#ID</th><th>Abierto por</th><th>Categoría</th>
+          <th>Reclamado por</th><th>Cerrado por</th><th>Abierto</th><th>Cerrado</th><th>Nota</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in logs %}
+        <tr>
+          <td><span style="font-family:'JetBrains Mono',monospace;color:var(--neon-purple);font-size:13px">#{{ t.ticket_id }}</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--neon-purple),var(--neon-blue));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">
+                {{ t.opened_by_name[0]|upper if t.opened_by_name else '?' }}
+              </div>
+              <span style="font-size:13px">{{ t.opened_by_name or '—' }}</span>
+            </div>
+          </td>
+          <td><span class="badge badge-purple">{{ t.category_id or '—' }}</span></td>
+          <td>
+            {% if t.claimed_by_name %}
+              <span class="badge badge-claimed">{{ t.claimed_by_name }}</span>
+            {% else %}
+              <span style="color:var(--text-muted);font-size:12px">Sin reclamar</span>
+            {% endif %}
+          </td>
+          <td style="font-size:13px;color:var(--text-secondary)">{{ t.closed_by_name or '—' }}</td>
+          <td style="font-size:12px;color:var(--text-muted)">{{ t.opened_at or '—' }}</td>
+          <td style="font-size:12px;color:var(--text-muted)">{{ t.closed_at or '—' }}</td>
+          <td>
+            {% if t.close_note %}
+              <span title="{{ t.close_note }}" style="cursor:help;font-size:12px;color:var(--neon-yellow)">
+                📝 {{ t.close_note[:30] }}{% if t.close_note|length > 30 %}...{% endif %}
+              </span>
+            {% else %}
+              <span style="color:var(--text-muted);font-size:12px">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">📋</div>
+      <h3>Sin logs aún</h3>
+      <p>Los tickets cerrados aparecerán aquí con todo su historial.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

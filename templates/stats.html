@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Estadísticas — ModdyTicket{% endblock %}
+{% block page_title %}Estadísticas{% endblock %}
+{% block page_subtitle %}Análisis completo de actividad de {{ guild_name }}{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+  <div class="stat-card purple"><div class="stat-icon">📈</div><div class="stat-label">Total Abiertos</div><div class="stat-value">{{ stats.total_opened or 0 }}</div></div>
+  <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-label">Total Cerrados</div><div class="stat-value">{{ stats.total_closed or 0 }}</div></div>
+  <div class="stat-card blue"><div class="stat-icon">🎫</div><div class="stat-label">Total Histórico</div><div class="stat-value">{{ total_tickets }}</div></div>
+  <div class="stat-card pink"><div class="stat-icon">⭐</div><div class="stat-label">Feedback Promedio</div><div class="stat-value">{{ avg_feedback }}</div><div class="stat-sub">/ 5.0</div></div>
+</div>
+
+<div class="grid-2" style="margin-bottom:20px">
+  <div class="card">
+    <div class="card-header"><div class="card-title"><span class="icon">📋</span> Tickets por Categoría</div></div>
+    {% if categories %}
+      <canvas id="catChart" height="200"></canvas>
+    {% else %}
+      <div class="empty-state" style="padding:30px"><div class="empty-state-icon">📋</div><p>Sin datos aún</p></div>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title"><span class="icon">⭐</span> Distribución de Feedback</div></div>
+    {% if feedback_dist.values()|sum > 0 %}
+      <canvas id="feedbackChart" height="200"></canvas>
+    {% else %}
+      <div class="empty-state" style="padding:30px"><div class="empty-state-icon">⭐</div><p>Sin valoraciones aún</p></div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><div class="card-title"><span class="icon">👷</span> Top Staff por Reclamaciones</div></div>
+  {% if top_staff %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Usuario ID</th><th>Reclamaciones</th><th>Porcentaje</th></tr></thead>
+      <tbody>
+        {% set max_claims = top_staff[0][1] if top_staff else 1 %}
+        {% for uid, count in top_staff %}
+        <tr>
+          <td style="width:40px"><span style="font-weight:800;color:var(--neon-purple)">{{ loop.index }}</span></td>
+          <td><code style="font-size:12px">{{ uid }}</code></td>
+          <td><span class="badge badge-purple">{{ count }}</span></td>
+          <td style="width:200px">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:{{ [(count/max_claims*100)|int,100]|min }}%"></div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <div class="empty-state" style="padding:30px"><div class="empty-state-icon">👷</div><p>Sin datos de staff aún</p></div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if categories %}
+new Chart(document.getElementById('catChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ categories.keys()|list|tojson }},
+    datasets: [{
+      label: 'Tickets',
+      data: {{ categories.values()|list|tojson }},
+      backgroundColor: ['rgba(139,92,246,0.7)','rgba(59,130,246,0.7)','rgba(16,185,129,0.7)','rgba(245,158,11,0.7)','rgba(236,72,153,0.7)'],
+      borderRadius: 6,
+    }]
+  },
+  options: { responsive:true, plugins:{ legend:{display:false} }, scales:{
+    x:{ticks:{color:'#4b5563'},grid:{color:'rgba(255,255,255,0.04)'}},
+    y:{ticks:{color:'#4b5563'},grid:{color:'rgba(255,255,255,0.04)'},beginAtZero:true}
+  }}
+});
+{% endif %}
+{% if feedback_dist.values()|sum > 0 %}
+new Chart(document.getElementById('feedbackChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['⭐ 1','⭐⭐ 2','⭐⭐⭐ 3','⭐⭐⭐⭐ 4','⭐⭐⭐⭐⭐ 5'],
+    datasets: [{
+      data: {{ [feedback_dist['1']|int, feedback_dist['2']|int, feedback_dist['3']|int, feedback_dist['4']|int, feedback_dist['5']|int]|tojson }},
+      backgroundColor: ['#ef4444','#f97316','#f59e0b','#3b82f6','#10b981'],
+      borderColor: '#1a1d27', borderWidth: 3,
+    }]
+  },
+  options: { responsive:true, cutout:'65%', plugins:{ legend:{labels:{color:'#94a3b8',font:{family:'Inter',size:12}}} } }
+});
+{% endif %}
+</script>
+{% endblock %}

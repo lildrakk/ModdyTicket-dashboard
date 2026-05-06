@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% block title %}Ajustes — ModdyTicket{% endblock %}
+{% block page_title %}Ajustes{% endblock %}
+{% block page_subtitle %}Configura ModdyTicket para {{ guild_name }}{% endblock %}
+{% block topbar_actions %}
+  <button class="btn btn-primary" onclick="saveAllSettings()">💾 Guardar Cambios</button>
+{% endblock %}
+
+{% block content %}
+<div class="tabs">
+  <button class="tab-btn active" data-tab="tab-general">⚙️ General</button>
+  <button class="tab-btn" data-tab="tab-roles">👥 Roles</button>
+  <button class="tab-btn" data-tab="tab-channels">📡 Canales</button>
+  <button class="tab-btn" data-tab="tab-messages">💬 Mensajes</button>
+  <button class="tab-btn" data-tab="tab-advanced">🔧 Avanzado</button>
+</div>
+
+<!-- TAB: General -->
+<div id="tab-general" class="tab-content">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="icon">🎫</span> Comportamiento de Tickets</div></div>
+      <div class="form-group">
+        <label class="form-label"><span>🔢</span> Máximo de tickets por usuario</label>
+        <input type="number" id="max_tickets_per_user" min="1" max="10" value="{{ config.max_tickets_per_user or 3 }}">
+        <div class="form-hint">Entre 1 y 10 tickets simultáneos por usuario</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label"><span>⏰</span> Auto-cierre por inactividad (horas)</label>
+        <input type="number" id="auto_close_hours" min="0" max="720" value="{{ config.auto_close_hours or 0 }}">
+        <div class="form-hint">0 = desactivado. Máximo 720 horas (30 días)</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="icon">🔔</span> Notificaciones y Toggles</div></div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>Ping al staff al abrir ticket</h4>
+          <p>Menciona a los roles de staff cuando se abre un ticket</p>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="ping_staff_on_open" {% if config.ping_staff_on_open %}checked{% endif %}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>DM al cerrar ticket</h4>
+          <p>Envía un mensaje privado con el transcript al usuario</p>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="dm_on_close" {% if config.dm_on_close %}checked{% endif %}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>Sistema de feedback</h4>
+          <p>Pide valoración de 1-5 estrellas al cerrar el ticket</p>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="feedback_enabled" {% if config.feedback_enabled %}checked{% endif %}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>Renombrar al reclamar</h4>
+          <p>Añade "claimed-" al nombre del canal al reclamarlo</p>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="rename_on_claim" {% if config.rename_on_claim %}checked{% endif %}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: Roles -->
+<div id="tab-roles" class="tab-content" style="display:none">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="icon">👷</span> Roles de Staff</div></div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Los miembros con estos roles pueden gestionar tickets (reclamar, cerrar, añadir usuarios, etc.)</p>
+      <div class="form-group">
+        <label class="form-label">Selecciona roles de staff</label>
+        <div data-chips>
+          <input type="hidden" id="staff_roles_value" value="{{ config.staff_roles | join(',') }}">
+          <div class="chips-container" id="staff-chips"></div>
+          <select class="chips-select" style="margin-top:8px">
+            <option value="">➕ Añadir rol...</option>
+            {% for role in roles %}
+              <option value="{{ role.id }}" style="color:#{{ '%06x' % role.color if role.color else 'ffffff' }}">
+                {{ role.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="icon">🔑</span> Roles de Admin de Tickets</div></div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Los miembros con estos roles pueden configurar el bot desde Discord y la dashboard.</p>
+      <div class="form-group">
+        <label class="form-label">Selecciona roles de admin</label>
+        <div data-chips>
+          <input type="hidden" id="admin_roles_value" value="{{ config.admin_roles | join(',') }}">
+          <div class="chips-container" id="admin-chips"></div>
+          <select class="chips-select" style="margin-top:8px">
+            <option value="">➕ Añadir rol...</option>
+            {% for role in roles %}
+              <option value="{{ role.id }}">{{ role.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:16px;text-align:right">
+    <button class="btn btn-primary" onclick="saveRoles()">💾 Guardar Roles</button>
+  </div>
+</div>
+
+<!-- TAB: Canales -->
+<div id="tab-channels" class="tab-content" style="display:none">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="icon">📡</span> Canales</div></div>
+      <div class="form-group">
+        <label class="form-label"><span>📋</span> Canal de Logs</label>
+        <select id="log_channel">
+          <option value="">— Sin canal —</option>
+          {% for ch in text_channels %}
+            <option value="{{ ch.id }}" {% if config.log_channel == ch.id|string %}selected{% endif %}>#{{ ch.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-hint">Canal donde se registran todas las acciones de tickets</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label"><span>📄</span> Canal de Transcripts</label>
+        <select id="transcript_channel">
+          <option value="">— Sin canal —</option>
+          {% for ch in text_channels %}
+            <option value="{{ ch.id }}" {% if config.transcript_channel == ch.id|string %}selected{% endif %}>#{{ ch.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-hint">Canal donde se guardan los transcripts HTML al cerrar tickets</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="icon">📂</span> Categorías de Discord</div></div>
+      <div class="form-group">
+        <label class="form-label"><span>📂</span> Categoría de Tickets Abiertos</label>
+        <select id="ticket_category">
+          <option value="">— Sin categoría —</option>
+          {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if config.ticket_category == cat.id|string %}selected{% endif %}>{{ cat.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-hint">Los nuevos canales de tickets se crearán aquí</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label"><span>🔒</span> Categoría de Tickets Cerrados</label>
+        <select id="closed_category">
+          <option value="">— Sin categoría —</option>
+          {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if config.closed_category == cat.id|string %}selected{% endif %}>{{ cat.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-hint">Los tickets se moverán aquí antes de eliminarse</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: Mensajes -->
+<div id="tab-messages" class="tab-content" style="display:none">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="icon">👋</span> Mensaje de Bienvenida</div></div>
+      <div class="form-group">
+        <textarea id="welcome_message" rows="5">{{ config.welcome_message or '' }}</textarea>
+        <div class="form-hint">Variables: <code>{user}</code> mención, <code>{category}</code> categoría</div>
+      </div>
+      <div style="background:var(--bg-elevated);border-radius:8px;padding:12px;font-size:12px;color:var(--text-muted)">
+        <strong>Vista previa:</strong><br>
+        <span id="welcome-preview"></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="icon">🔒</span> Mensaje de Cierre</div></div>
+      <div class="form-group">
+        <textarea id="close_message" rows="5">{{ config.close_message or '' }}</textarea>
+        <div class="form-hint">Se envía por DM al usuario al cerrar su ticket</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: Avanzado -->
+<div id="tab-advanced" class="tab-content" style="display:none">
+  <div class="card" style="border-color:rgba(239,68,68,0.2)">
+    <div class="card-header">
+      <div class="card-title" style="color:var(--neon-red)"><span class="icon">⚠️</span> Zona de Peligro</div>
+    </div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">Estas acciones son irreversibles. Úsalas con precaución.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-danger" onclick="confirmReset()">🗑️ Resetear Configuración</button>
+      <button class="btn btn-danger" onclick="confirmClearStats()">📊 Borrar Estadísticas</button>
+      <button class="btn btn-danger" onclick="confirmClearBlacklist()">🚫 Limpiar Blacklist</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const GUILD_ID = '{{ guild_id }}';
+
+// ── Guardar configuración general ──────────────────
+async function saveAllSettings() {
+  try {
+    const payload = {
+      max_tickets_per_user: parseInt(document.getElementById('max_tickets_per_user').value) || 3,
+      auto_close_hours:     parseInt(document.getElementById('auto_close_hours').value) || 0,
+      ping_staff_on_open:   document.getElementById('ping_staff_on_open').checked,
+      dm_on_close:          document.getElementById('dm_on_close').checked,
+      feedback_enabled:     document.getElementById('feedback_enabled').checked,
+      rename_on_claim:      document.getElementById('rename_on_claim').checked,
+      log_channel:          document.getElementById('log_channel').value || null,
+      transcript_channel:   document.getElementById('transcript_channel').value || null,
+      ticket_category:      document.getElementById('ticket_category').value || null,
+      closed_category:      document.getElementById('closed_category').value || null,
+      welcome_message:      document.getElementById('welcome_message').value,
+      close_message:        document.getElementById('close_message').value,
+    };
+    await API.post(`/api/${GUILD_ID}/settings/general`, payload);
+    Toast.success('✅ Configuración guardada correctamente');
+  } catch (e) {
+    Toast.error('❌ ' + e.message);
+  }
+}
+
+// ── Guardar roles ──────────────────────────────────
+async function saveRoles() {
+  try {
+    const staffInput = document.getElementById('staff_roles_value');
+    const adminInput = document.getElementById('admin_roles_value');
+    await API.post(`/api/${GUILD_ID}/settings/roles`, {
+      staff_roles: staffInput ? staffInput.value.split(',').filter(Boolean) : [],
+      admin_roles: adminInput ? adminInput.value.split(',').filter(Boolean) : [],
+    });
+    Toast.success('✅ Roles guardados correctamente');
+  } catch (e) {
+    Toast.error('❌ ' + e.message);
+  }
+}
+
+// ── Confirmar acciones peligrosas ──────────────────
+function confirmReset() {
+  if (confirm('⚠️ ¿Resetear TODA la configuración? Esta acción no se puede deshacer.')) {
+    Toast.info('Función disponible desde el comando /config reset en Discord');
+  }
+}
+function confirmClearStats() {
+  if (confirm('⚠️ ¿Borrar todas las estadísticas? Esta acción no se puede deshacer.')) {
+    Toast.info('Función disponible desde el comando /feedback limpiar en Discord');
+  }
+}
+function confirmClearBlacklist() {
+  if (confirm('⚠️ ¿Limpiar la lista negra completa?')) {
+    Toast.info('Usa /blacklist desde Discord para gestionar usuarios individuales');
+  }
+}
+
+// ── Live preview mensaje bienvenida ────────────────
+const wMsg = document.getElementById('welcome_message');
+const wPrev = document.getElementById('welcome-preview');
+if (wMsg && wPrev) {
+  const updatePreview = () => {
+    wPrev.textContent = wMsg.value
+      .replace('{user}', '@Usuario')
+      .replace('{category}', 'soporte');
+  };
+  wMsg.addEventListener('input', updatePreview);
+  updatePreview();
+}
+</script>
+{% endblock %}

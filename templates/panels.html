@@ -1,0 +1,377 @@
+{% extends "base.html" %}
+{% block title %}Paneles — ModdyTicket{% endblock %}
+{% block page_title %}Paneles{% endblock %}
+{% block page_subtitle %}Gestiona los paneles de tickets de {{ guild_name }}{% endblock %}
+{% block topbar_actions %}
+  <button class="btn btn-primary" onclick="Modal.open('modal-create-panel')">✨ Crear Panel</button>
+{% endblock %}
+
+{% block content %}
+{% if panels %}
+  <div style="display:flex;flex-direction:column;gap:20px">
+    {% for pid, p in panels.items() %}
+    <div class="card" id="panel-{{ pid }}">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="icon">🎛️</span>
+          {{ p.title }}
+          <span class="badge badge-purple" style="font-size:11px">{{ p.type }}</span>
+          <code style="font-size:11px;color:var(--text-muted);background:var(--bg-elevated);padding:2px 7px;border-radius:4px">{{ pid }}</code>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="openEditPanel('{{ pid }}', {{ p | tojson | replace("'", "\\'") }})">✏️ Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="deletePanel('{{ pid }}')">🗑️</button>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:16px">
+        <div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">DESCRIPCIÓN</div>
+          <div style="font-size:13px;color:var(--text-secondary)">{{ p.description }}</div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">VISTA PREVIA</div>
+          <div class="panel-preview">
+            <div class="panel-preview-embed" style="border-left-color:#{{ '%06x' % p.color }}">
+              <div class="panel-preview-title">{{ p.title }}</div>
+              <div class="panel-preview-desc">{{ p.description }}</div>
+            </div>
+            <div class="panel-preview-btns" style="margin-top:10px">
+              {% if p.type == 'select' %}
+                <div style="background:#2f3136;color:#dcddde;padding:8px 12px;border-radius:4px;font-size:13px;border:1px solid #4f545c;width:100%">
+                  {{ p.select_placeholder or '📋 Selecciona una categoría...' }}
+                </div>
+              {% else %}
+                {% for btn in p.buttons %}
+                  <button class="preview-btn {{ btn.color }}">{{ btn.emoji or '' }} {{ btn.label }}</button>
+                {% endfor %}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Categorías -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted)">
+            CATEGORÍAS ({{ p.buttons|length }}/5)
+          </div>
+          {% if p.buttons|length < 5 %}
+          <button class="btn btn-secondary btn-sm" onclick="openAddCategory('{{ pid }}')">➕ Añadir</button>
+          {% endif %}
+        </div>
+        {% if p.buttons %}
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Label</th><th>ID</th><th>Color</th><th>Emoji</th><th>Canal</th><th></th></tr></thead>
+            <tbody>
+              {% for btn in p.buttons %}
+              <tr>
+                <td>{{ btn.label }}</td>
+                <td><code style="font-size:11px;color:var(--neon-purple)">{{ btn.category_id }}</code></td>
+                <td><span class="badge badge-purple">{{ btn.color }}</span></td>
+                <td>{{ btn.emoji or '—' }}</td>
+                <td><code style="font-size:11px;color:var(--text-muted)">{{ btn.channel_name }}</code></td>
+                <td>
+                  <button class="btn btn-danger btn-sm btn-icon" onclick="deleteCategory('{{ pid }}','{{ btn.category_id }}')">🗑️</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div style="background:var(--bg-elevated);border-radius:8px;padding:16px;text-align:center;font-size:13px;color:var(--text-muted)">
+          Sin categorías. Añade hasta 5 con el botón ➕
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">🎛️</div>
+    <h3>Sin paneles configurados</h3>
+    <p>Crea tu primer panel para que los usuarios puedan abrir tickets.</p>
+    <button class="btn btn-primary" style="margin-top:16px" onclick="Modal.open('modal-create-panel')">✨ Crear Panel</button>
+  </div>
+{% endif %}
+
+<!-- ── Modal: Crear Panel ─────────────────────── -->
+<div class="modal-overlay" id="modal-create-panel">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">✨ Crear Nuevo Panel</div>
+      <button class="modal-close" data-modal-close>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label"><span>🆔</span> ID del Panel</label>
+        <input type="text" id="new-panel-id" placeholder="ej: soporte (sin espacios)">
+      </div>
+      <div class="form-group">
+        <label class="form-label"><span>📝</span> Título</label>
+        <input type="text" id="panel-title" placeholder="🎫 Abre un Ticket" oninput="updatePanelPreview()">
+      </div>
+      <div class="form-group">
+        <label class="form-label"><span>📄</span> Descripción</label>
+        <textarea id="panel-desc" rows="2" placeholder="Selecciona una categoría para abrir un ticket." oninput="updatePanelPreview()"></textarea>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label"><span>🎨</span> Color (hex)</label>
+          <div class="color-row">
+            <input type="color" value="#5865f2" id="panel-color-picker">
+            <input type="text" id="panel-color-text" value="5865F2" placeholder="5865F2" maxlength="6">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span>🎛️</span> Tipo</label>
+          <select id="panel-tipo" onchange="updatePanelPreview()">
+            <option value="buttons">Botones</option>
+            <option value="select">Select Menu</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label"><span>📝</span> Footer</label>
+        <input type="text" id="panel-footer" value="ModdyTicket • Abre un ticket para recibir ayuda">
+      </div>
+      <div class="form-group">
+        <label class="form-label"><span>🖼️</span> URL de Imagen (opcional)</label>
+        <input type="url" id="panel-image" placeholder="https://...">
+      </div>
+      <!-- Vista previa -->
+      <div style="margin-top:8px">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px">VISTA PREVIA</div>
+        <div id="panel-preview" class="panel-preview">
+          <div class="panel-preview-embed">
+            <div class="panel-preview-title">🎫 Abre un Ticket</div>
+            <div class="panel-preview-desc">Selecciona una categoría.</div>
+          </div>
+          <div class="panel-preview-btns"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-modal-close>Cancelar</button>
+      <button class="btn btn-primary" onclick="createPanel()">✨ Crear Panel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Editar Panel ────────────────────── -->
+<div class="modal-overlay" id="modal-edit-panel">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">✏️ Editar Panel</div>
+      <button class="modal-close" data-modal-close>×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-panel-id">
+      <div class="form-group">
+        <label class="form-label">Título</label>
+        <input type="text" id="edit-panel-title">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripción</label>
+        <textarea id="edit-panel-desc" rows="2"></textarea>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Color</label>
+          <div class="color-row">
+            <input type="color" id="edit-panel-color-picker">
+            <input type="text" id="edit-panel-color-text" maxlength="6">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <select id="edit-panel-tipo">
+            <option value="buttons">Botones</option>
+            <option value="select">Select Menu</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Footer</label>
+        <input type="text" id="edit-panel-footer">
+      </div>
+      <div class="form-group">
+        <label class="form-label">URL de Imagen</label>
+        <input type="url" id="edit-panel-image">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Placeholder (Select Menu)</label>
+        <input type="text" id="edit-panel-placeholder">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-modal-close>Cancelar</button>
+      <button class="btn btn-primary" onclick="updatePanel()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Añadir Categoría ───────────────── -->
+<div class="modal-overlay" id="modal-add-category">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">➕ Añadir Categoría</div>
+      <button class="modal-close" data-modal-close>×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cat-panel-id">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label"><span>🆔</span> ID de Categoría</label>
+          <input type="text" id="cat-id" placeholder="ej: soporte">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span>🏷️</span> Label (texto del botón)</label>
+          <input type="text" id="cat-label" placeholder="Soporte General">
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label"><span>😀</span> Emoji (opcional)</label>
+          <input type="text" id="cat-emoji" placeholder="🆘">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span>🎨</span> Color</label>
+          <select id="cat-color">
+            <option value="blurple">Blurple (azul)</option>
+            <option value="verde">Verde</option>
+            <option value="rojo">Rojo</option>
+            <option value="gris">Gris</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label"><span>📝</span> Descripción (para select menu)</label>
+        <input type="text" id="cat-desc" placeholder="Abre un ticket de soporte general">
+      </div>
+      <div class="form-group">
+        <label class="form-label"><span>📁</span> Nombre del canal</label>
+        <input type="text" id="cat-channel" placeholder="ticket-soporte-{id}">
+        <div class="form-hint">Variables: <code>{user}</code> <code>{id}</code> <code>{category}</code></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label"><span>👋</span> Mensaje de bienvenida (override)</label>
+        <textarea id="cat-welcome" rows="2" placeholder="Deja vacío para usar el mensaje global"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-modal-close>Cancelar</button>
+      <button class="btn btn-primary" onclick="addCategory()">➕ Añadir</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const GUILD_ID = '{{ guild_id }}';
+
+async function createPanel() {
+  try {
+    const payload = {
+      panel_id:    document.getElementById('new-panel-id').value.trim(),
+      title:       document.getElementById('panel-title').value,
+      description: document.getElementById('panel-desc').value,
+      color:       document.getElementById('panel-color-text').value,
+      tipo:        document.getElementById('panel-tipo').value,
+      footer:      document.getElementById('panel-footer').value,
+      image:       document.getElementById('panel-image').value || null,
+    };
+    if (!payload.panel_id || !payload.title) return Toast.error('ID y título son obligatorios');
+    await API.post(`/api/${GUILD_ID}/panels/create`, payload);
+    Toast.success('Panel creado ✅');
+    Modal.closeAll();
+    setTimeout(() => location.reload(), 800);
+  } catch(e) { Toast.error(e.message); }
+}
+
+function openEditPanel(pid, data) {
+  document.getElementById('edit-panel-id').value     = pid;
+  document.getElementById('edit-panel-title').value  = data.title || '';
+  document.getElementById('edit-panel-desc').value   = data.description || '';
+  const hex = (data.color || 0x5865F2).toString(16).padStart(6,'0');
+  document.getElementById('edit-panel-color-text').value   = hex;
+  document.getElementById('edit-panel-color-picker').value = '#' + hex;
+  document.getElementById('edit-panel-tipo').value         = data.type || 'buttons';
+  document.getElementById('edit-panel-footer').value       = data.footer || '';
+  document.getElementById('edit-panel-image').value        = data.image || '';
+  document.getElementById('edit-panel-placeholder').value  = data.select_placeholder || '';
+  Modal.open('modal-edit-panel');
+}
+
+async function updatePanel() {
+  const pid = document.getElementById('edit-panel-id').value;
+  try {
+    await API.put(`/api/${GUILD_ID}/panels/${pid}`, {
+      panel_id:           pid,
+      title:              document.getElementById('edit-panel-title').value,
+      description:        document.getElementById('edit-panel-desc').value,
+      color:              document.getElementById('edit-panel-color-text').value,
+      tipo:               document.getElementById('edit-panel-tipo').value,
+      footer:             document.getElementById('edit-panel-footer').value,
+      image:              document.getElementById('edit-panel-image').value || null,
+      select_placeholder: document.getElementById('edit-panel-placeholder').value,
+    });
+    Toast.success('Panel actualizado ✅');
+    Modal.closeAll();
+    setTimeout(() => location.reload(), 800);
+  } catch(e) { Toast.error(e.message); }
+}
+
+async function deletePanel(pid) {
+  if (!confirm(`¿Eliminar el panel "${pid}"? Esta acción no se puede deshacer.`)) return;
+  try {
+    await API.delete(`/api/${GUILD_ID}/panels/${pid}`);
+    Toast.success('Panel eliminado ✅');
+    setTimeout(() => location.reload(), 800);
+  } catch(e) { Toast.error(e.message); }
+}
+
+function openAddCategory(pid) {
+  document.getElementById('cat-panel-id').value = pid;
+  ['cat-id','cat-label','cat-emoji','cat-desc','cat-channel','cat-welcome'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('cat-color').value = 'blurple';
+  Modal.open('modal-add-category');
+}
+
+async function addCategory() {
+  const pid = document.getElementById('cat-panel-id').value;
+  try {
+    await API.post(`/api/${GUILD_ID}/panels/${pid}/categories`, {
+      category_id:      document.getElementById('cat-id').value.trim(),
+      label:            document.getElementById('cat-label').value,
+      description:      document.getElementById('cat-desc').value,
+      emoji:            document.getElementById('cat-emoji').value || null,
+      color:            document.getElementById('cat-color').value,
+      channel_name:     document.getElementById('cat-channel').value,
+      welcome_override: document.getElementById('cat-welcome').value,
+      ping_roles:       [],
+    });
+    Toast.success('Categoría añadida ✅');
+    Modal.closeAll();
+    setTimeout(() => location.reload(), 800);
+  } catch(e) { Toast.error(e.message); }
+}
+
+async function deleteCategory(pid, cid) {
+  if (!confirm(`¿Eliminar la categoría "${cid}"?`)) return;
+  try {
+    await API.delete(`/api/${GUILD_ID}/panels/${pid}/categories/${cid}`);
+    Toast.success('Categoría eliminada ✅');
+    setTimeout(() => location.reload(), 800);
+  } catch(e) { Toast.error(e.message); }
+}
+</script>
+{% endblock %}
